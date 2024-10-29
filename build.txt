@@ -1,0 +1,3 @@
+displayName = 随机数分布修改器
+author = 随机一个人RandomPerson
+version = 0.1
