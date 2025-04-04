@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Configuration;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,6 +34,8 @@ namespace RandomDistributionModifier
 
     public class RandomDistributionModifier : Mod
     {
+        public static DistributionSetter[] distributionSetters = new DistributionSetter[3];
+
         public override void Load()
         {
             On_UnifiedRandom.Sample += AnotherRandom;
@@ -41,6 +44,29 @@ namespace RandomDistributionModifier
             On_UnifiedRandom.Next_int += AnotherRandomSigleInt;
             On_UnifiedRandom.Next_int_int += AnotherRandomIntInt;
 
+            for (int n = 0; n < 3; n++)
+                distributionSetters[n] = n switch
+                {
+                    0 => new PowerDistrubution(),
+                    1 => new LinearDistribution(),
+                    2 or _ => new SmoothDistribution()
+                };
+
+            var path = $"{Main.SavePath}/Mods/RandomDistributionModifier/config.bin";
+            if (File.Exists(path))
+            {
+                try
+                {
+                    using FileStream fileStream = new FileStream(path, FileMode.Open);
+                    using BinaryReader reader = new BinaryReader(fileStream);
+                    foreach (var setter in distributionSetters)
+                        setter.Load(reader);
+                }
+                catch
+                {
+                    File.Delete(path);
+                }
+            }
             base.Load();
         }
 
@@ -114,6 +140,10 @@ namespace RandomDistributionModifier
         public override void Unload()
         {
             On_UnifiedRandom.Sample -= AnotherRandom;
+            On_UnifiedRandom.Next -= AnotherRandomInt;
+            On_UnifiedRandom.NextBytes -= AnotherRandomBytes;
+            On_UnifiedRandom.Next_int -= AnotherRandomSigleInt;
+            On_UnifiedRandom.Next_int_int -= AnotherRandomIntInt;
             base.Unload();
         }
     }
@@ -170,19 +200,34 @@ namespace RandomDistributionModifier
             }
             base.ModifyInterfaceLayers(layers);
         }
-
+        public override void SaveWorldData(TagCompound tag)
+        {
+            var path = $"{Main.SavePath}/Mods/RandomDistributionModifier/config.bin";
+            try
+            {
+                var dirPath = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dirPath))
+                    Directory.CreateDirectory(dirPath);
+                using FileStream fileStream = new FileStream(path, FileMode.OpenOrCreate);
+                using BinaryWriter writer = new BinaryWriter(fileStream);
+                foreach (var setter in RandomDistributionModifier.distributionSetters)
+                    setter.Save(writer);
+            }
+            catch (Exception ex)
+            {
+                Main.NewText(ex.Message);
+                //File.Delete(path);
+            }
+            base.SaveWorldData(tag);
+        }
+        public override void LoadWorldData(TagCompound tag)
+        {
+            base.LoadWorldData(tag);
+        }
     }
     public class RDMPlayer : ModPlayer
     {
         RandomDistributionModifierUI modifierUI;
-        public override void SaveData(TagCompound tag)
-        {
-            base.SaveData(tag);
-        }
-        public override void LoadData(TagCompound tag)
-        {
-            base.LoadData(tag);
-        }
         public override void ProcessTriggers(TriggersSet triggersSet)
         {
             if (modifierUI == null) modifierUI = RDMSystem.instance.randomDistributionModifierUI;
@@ -193,6 +238,18 @@ namespace RandomDistributionModifier
                 else
                     modifierUI.Open();
             }
+
+            /*int l = 25;
+            int m = 100;
+            int[] array = new int[l];
+            for (int n = 0; n < m; n++)
+                array[Main.rand.Next(2, 2 + l) - 2]++;
+            string msg = "";
+            foreach (var num in array)
+                msg += num + " ， ";
+            Main.NewText(msg);*/
+
+            //Main.NewText(Main.rand.Next());
             base.ProcessTriggers(triggersSet);
         }
     }
@@ -264,7 +321,8 @@ namespace RandomDistributionModifier
             randType.OnLeftClick += (evt, elem) =>
             {
                 index++;
-                randType.SetText((index % 3) switch
+                index %= 3;
+                randType.SetText(index switch
                 {
                     0 => "迭代",
                     1 => "折线",
@@ -272,12 +330,7 @@ namespace RandomDistributionModifier
                 }
                 );
                 SoundEngine.PlaySound(SoundID.MenuTick);
-                distributionElement.Setter = (index % 3) switch
-                {
-                    0 => new PowerDistrubution(),
-                    1 => new LinearDistribution(),
-                    2 or _ => new SmoothDistribution()
-                };
+                distributionElement.Setter = RandomDistributionModifier.distributionSetters[index];
             };
             basePanel.Append(randType);
             distributionElement = new DistributionElement();
@@ -403,11 +456,15 @@ namespace RandomDistributionModifier
         /// </summary>
         /// <param name="basePanel"></param>
         public abstract void AppendElements(UIElement basePanel);
+
+        public abstract void Save(BinaryWriter writer);
+
+        public abstract void Load(BinaryReader reader);
     }
     public class SmoothDistribution : DistributionSetter
     {
-        public List<Vector3> nodes = new();
-        public List<DraggableButton> buttons = new();
+        public static List<Vector3> nodes = new();
+        public static List<DraggableButton> buttons = new();
         //public List<DraggableButton> tangents = new();
         public override float PDF(float t)
         {
@@ -432,25 +489,28 @@ namespace RandomDistributionModifier
         {
             int max = 100;
             float[] totalArea = new float[max];
-            
-            for (int n = 0; n < max; n++) 
+
+            for (int n = 0; n < max; n++)
             {
                 totalArea[n] = MathHelper.Clamp(PDF(n * 1f / (max - 1)), 0, 2);
                 if (n > 0)
                     totalArea[n] += totalArea[n - 1];
             }
             float sum = totalArea[^1];
-            for(int n = 0;n < max;n++)
+            for (int n = 0; n < max; n++)
                 totalArea[n] /= sum;
             double randValue = t();
             int counter = 0;
-            while(counter < max && randValue > totalArea[counter])
+            while (counter < max && randValue > totalArea[counter])
                 counter++;
 
-            return counter * 1.0 / max;
+            return (counter + Utils.GetLerpValue(counter == 0 ? 0 : totalArea[counter - 1], totalArea[counter], randValue)) / max;
         }
         public override void AppendElements(UIElement basePanel)
         {
+            bool dataLoaded = nodes.Count > 0;
+            buttons.Clear();
+
             UIElement element = new UIElement();
             element.Width.Set(0, 1);
             element.Height.Set(0, 1);
@@ -463,22 +523,62 @@ namespace RandomDistributionModifier
             var dimension = element.GetDimensions();
             startButton.Top.Set(-16, 0);
             startButton.Left.Set(-16, 0);
-
+            if (dataLoaded)
+            {
+                startButton.Top.Set(dimension.Height * (2 - nodes[0].Y) * .5f - 16, 0);
+            }
             startButton.Width.Set(32, 0);
             startButton.Height.Set(32, 0);
-            element.Append(startButton.HandleOn());
+            float scaler = MathF.Pow(dimension.Height / dimension.Width, 2);
+            if (dataLoaded)
+                element.Append(startButton.HandleOn(nodes[0].Z * scaler));
+            else
+                element.Append(startButton.HandleOn());
             element.Append(startButton);
             DraggableButton endButton = new DraggableButton();
             endButton.StartOrEnd = true;
             endButton.Top.Set(dimension.Height - 16, 0);
             endButton.Left.Set(dimension.Width - 16, 0);
+            if (dataLoaded)
+            {
+                endButton.Top.Set(dimension.Height * (2 - nodes[^1].Y) * .5f - 16, 0);
+            }
             endButton.Width.Set(32, 0);
             endButton.Height.Set(32, 0);
-            element.Append(endButton.HandleOn(true));
+            if (dataLoaded)
+                element.Append(endButton.HandleOn(nodes[^1].Z * scaler, true));
+            else
+                element.Append(endButton.HandleOn(true));
 
             element.Append(endButton);
             buttons.Add(startButton);
             buttons.Add(endButton);
+
+            if (dataLoaded)
+            {
+                for (int n = 1; n < nodes.Count - 1; n++)
+                {
+                    DraggableButton draggableButton = new DraggableButton();
+                    var dim = element.GetDimensions();
+                    draggableButton.Left.Set(dimension.Width * nodes[n].X - 16, 0);
+                    draggableButton.Top.Set(dimension.Height * (2 - nodes[n].Y) * .5f - 16, 0);
+                    draggableButton.Width.Set(32, 0);
+                    draggableButton.Height.Set(32, 0);
+                    buttons.Add(draggableButton);
+                    element.Append(draggableButton.HandleOn(nodes[n].Z * scaler));
+                    element.Append(draggableButton);
+                    draggableButton.OnRightClick += (evt, elem) =>
+                    {
+                        if (evt.Target == draggableButton)
+                        {
+                            buttons.Remove(draggableButton);
+                            draggableButton.Remove();
+                            draggableButton.handle.Remove();
+                        }
+                    };
+                }
+            }
+
             element.OnLeftMouseDown += (evt, elem) =>
             {
                 if (evt.Target != elem) return;
@@ -524,12 +624,33 @@ namespace RandomDistributionModifier
                 nodes.Sort((vec1, vec2) => vec1.X > vec2.X ? 1 : -1);
             };
         }
+
+        public override void Save(BinaryWriter writer)
+        {
+            writer.Write((byte)nodes.Count);
+            for (int n = 0; n < nodes.Count; n++)
+            {
+                Vector3 vec = nodes[n];
+                writer.Write(vec.X);
+                writer.Write(vec.Y);
+                writer.Write(vec.Z);
+            }
+
+        }
+        public override void Load(BinaryReader reader)
+        {
+            int count = reader.ReadByte();
+            for (int n = 0; n < count; n++)
+            {
+                nodes.Add(new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()));
+            }
+        }
     }
 
     public class LinearDistribution : DistributionSetter
     {
-        public List<Vector2> nodes = new();
-        public List<DraggableButton> buttons = new();
+        public static List<Vector2> nodes = new();
+        public static List<DraggableButton> buttons = new();
         public override float PDF(float t)
         {
             int count = nodes.Count;
@@ -575,6 +696,9 @@ namespace RandomDistributionModifier
         }
         public override void AppendElements(UIElement basePanel)
         {
+            bool dataLoaded = nodes.Count > 0;
+            buttons.Clear();
+
             UIElement element = new UIElement();
             element.Width.Set(0, 1);
             element.Height.Set(0, 1);
@@ -585,25 +709,54 @@ namespace RandomDistributionModifier
             var dimension = element.GetDimensions();
             startButton.Top.Set(-16, 0);
             startButton.Left.Set(-16, 0);
-
+            if (dataLoaded)
+            {
+                startButton.Top.Set(dimension.Height * (2 - nodes[0].Y) * .5f - 16, 0);
+            }
             startButton.Width.Set(32, 0);
             startButton.Height.Set(32, 0);
             element.Append(startButton);
             DraggableButton endButton = new DraggableButton();
             endButton.StartOrEnd = true;
             endButton.Top.Set(dimension.Height - 16, 0);
+            if (dataLoaded)
+            {
+                endButton.Top.Set(dimension.Height * (2 - nodes[^1].Y) * .5f - 16, 0);
+            }
             endButton.Left.Set(dimension.Width - 16, 0);
             endButton.Width.Set(32, 0);
             endButton.Height.Set(32, 0);
             element.Append(endButton);
             buttons.Add(startButton);
             buttons.Add(endButton);
+            if (dataLoaded)
+            {
+                for (int n = 1; n < nodes.Count - 1; n++)
+                {
+                    DraggableButton draggableButton = new DraggableButton();
+                    var dim = element.GetDimensions();
+                    draggableButton.Left.Set(dimension.Width * nodes[n].X - 16, 0);
+                    draggableButton.Top.Set(dimension.Height * (2 - nodes[n].Y) * .5f - 16, 0);
+                    draggableButton.Width.Set(32, 0);
+                    draggableButton.Height.Set(32, 0);
+                    buttons.Add(draggableButton);
+                    element.Append(draggableButton);
+                    draggableButton.OnRightClick += (evt, elem) =>
+                    {
+                        if (evt.Target == draggableButton)
+                        {
+                            buttons.Remove(draggableButton);
+                            draggableButton.Remove();
+                        }
+                    };
+                }
+            }
             element.OnLeftMouseDown += (evt, elem) =>
             {
                 if (evt.Target != elem) return;
                 DraggableButton draggableButton = new DraggableButton();
                 var dim = element.GetDimensions();
-                Main.NewText((element.GetDimensions().ToRectangle(), basePanel.GetDimensions().ToRectangle(), basePanel.PaddingTop));
+                //Main.NewText((element.GetDimensions().ToRectangle(), basePanel.GetDimensions().ToRectangle(), basePanel.PaddingTop));
                 draggableButton.Left.Set(Main.mouseX - dim.X - 16, 0);
                 draggableButton.Top.Set(Main.mouseY - dim.Y - 16, 0);
                 draggableButton.Width.Set(32, 0);
@@ -641,16 +794,36 @@ namespace RandomDistributionModifier
                 nodes.Sort((vec1, vec2) => vec1.X > vec2.X ? 1 : -1);
             };
         }
+
+        public override void Save(BinaryWriter writer)
+        {
+            writer.Write((byte)nodes.Count);
+            for (int n = 0; n < nodes.Count; n++)
+            {
+                Vector2 vec = nodes[n];
+                writer.Write(vec.X);
+                writer.Write(vec.Y);
+            }
+
+        }
+        public override void Load(BinaryReader reader)
+        {
+            int count = reader.ReadByte();
+            for (int n = 0; n < count; n++)
+            {
+                nodes.Add(new Vector2(reader.ReadSingle(), reader.ReadSingle()));
+            }
+        }
     }
     public class PowerDistrubution : DistributionSetter//这不是指数分布，但是我姑且这么叫吧（x
     {
-        int power;
-        public int Power
+        static int power;
+        public static int Power
         {
             get => power;
             set => power = Math.Clamp(value, 1, 10);
         }
-        public bool isRightSide;
+        public static bool isRightSide;
         public override float PDF(float t)
         {
             if (power == 1) return 1;
@@ -676,10 +849,10 @@ namespace RandomDistributionModifier
         }
         public override void AppendElements(UIElement basePanel)
         {
-            power = 2;
             UIToggleImage uIToggleImage = new UIToggleImage(ModContent.Request<Texture2D>("Terraria/Images/UI/TexturePackButtons", AssetRequestMode.ImmediateLoad), 32, 32, new Point(32, 32), new Point(0, 32));
             uIToggleImage.HAlign = 1f;
             uIToggleImage.VAlign = 0f;
+            uIToggleImage.SetState(isRightSide);
             uIToggleImage.OnUpdate += _ =>
             {
                 isRightSide = uIToggleImage.IsOn;
@@ -704,6 +877,17 @@ namespace RandomDistributionModifier
             uIImageButton.HAlign = 1f;
             uIImageButton.Top.Set(30, 0);
             basePanel.Append(uIImageButton);
+        }
+
+        public override void Load(BinaryReader reader)
+        {
+            power = reader.ReadByte();
+            isRightSide = reader.ReadBoolean();
+        }
+        public override void Save(BinaryWriter writer)
+        {
+            writer.Write((byte)power);
+            writer.Write(isRightSide);
         }
     }
 
@@ -778,6 +962,24 @@ namespace RandomDistributionModifier
             ButtonHandle handle = new ButtonHandle();
             handle.Top = this.Top;
             handle.Left.Set(this.Left.Pixels + (end ? -32 : 32), 0);
+
+            handle.Width.Set(24, 0);
+            handle.Height.Set(24, 0);
+            this.handle = handle;
+            return handle;
+        }
+        public ButtonHandle HandleOn(float k, bool end = false)
+        {
+            ButtonHandle handle = new ButtonHandle();
+            float c = 1 / MathF.Sqrt(1 + k * k);
+            float s = -k / MathF.Sqrt(1 + k * k);
+            if (end)
+            {
+                c *= -1;
+                s *= -1;
+            }
+            handle.Top.Set(this.Top.Pixels + 32 * s, 0);
+            handle.Left.Set(this.Left.Pixels + 32 * c, 0);
 
             handle.Width.Set(24, 0);
             handle.Height.Set(24, 0);
