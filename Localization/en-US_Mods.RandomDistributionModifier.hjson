@@ -1,85 +1,14 @@
-Configs: {
-	RandomModifierConfig: {
-		DisplayName: Random Modifier Config
-
-		useModification: {
-			Label: use Modification
-			Tooltip: ""
-		}
-
-		distribution: {
-			Label: distribution
-			Tooltip: ""
-		}
-	}
-
-	Distribution: {
-		Tooltip: ""
-
-		distributionType: {
-			Label: distribution Type
-			Tooltip: ""
-		}
-
-		powerDistrubution: {
-			Label: power Distrubution
-			Tooltip: ""
-		}
-
-		linearDistribution: {
-			Label: linear Distribution
-			Tooltip: ""
-		}
-
-		smoothDistribution: {
-			Label: smooth Distribution
-			Tooltip: ""
-		}
-	}
-
-	DistributionType: {
-		Tooltip: ""
-		Power.Label: Power
-		Linear.Label: Linear
-		Smooth.Label: Smooth
-	}
-
-	PowerDistrubution: {
-		Tooltip: ""
-
-		isRightSide: {
-			Label: is Right Side
-			Tooltip: ""
-		}
-
-		Power: {
-			Label: Power
-			Tooltip: ""
-		}
-	}
-
-	LinearDistribution: {
-		Tooltip: ""
-
-		nodes: {
-			Label: nodes
-			Tooltip: ""
-		}
-	}
-
-	SmoothDistribution: {
-		Tooltip: ""
-
-		nodes: {
-			Label: nodes
-			Tooltip: ""
-		}
-
-		tangents: {
-			Label: tangents
-			Tooltip: ""
-		}
-	}
+Misc: {
+	min: min
+	max: max
+	Power: Iterate
+	Linear: Polylines
+	Smooth: Smooth
+	Normal: Normal
+	Miu: Expectation
+	Sigma: Standard Deviation
+	On: On
+	Off: Off
 }
 
-Keybinds.ModifyRandom.DisplayName: Modify Random
+Keybinds.ModifyRandom.DisplayName: Modify Random Distribution

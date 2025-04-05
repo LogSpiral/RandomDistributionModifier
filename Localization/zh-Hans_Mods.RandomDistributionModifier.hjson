@@ -1,0 +1,14 @@
+Misc: {
+	min: 最小值
+	max: 最大值
+	Power: 迭代
+	Linear: 折线
+	Smooth: 平滑
+	Normal: 正态
+	Miu: 期望
+	Sigma: 标准差
+	On: 开
+	Off: 关
+}
+
+Keybinds.ModifyRandom.DisplayName: 打开概率密度编辑面板

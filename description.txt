@@ -1,4 +1,18 @@
-Ê¹ÓÃÕâ¸öÄ£×éÀ´Ä§¸ÄÔ­°æµÄËæ»úÊı·Ö²¼£¡
-ÊÜÓ°Ïì×îÃ÷ÏÔµÄÓ¦¸Ã»áÊÇÊÀ½çÉú³É
-ÏñÊÇÎïÆ·µôÂäÖ®ÀàµÄÒ²»áÓĞÏÔÖø±ä¶¯
-×£ÄãºÃÔË;P
+ï»¿ä½¿ç”¨è¿™ä¸ªæ¨¡ç»„æ¥é­”æ”¹åŸç‰ˆçš„éšæœºæ•°åˆ†å¸ƒï¼
+å—å½±å“æœ€æ˜æ˜¾çš„åº”è¯¥ä¼šæ˜¯ä¸–ç•Œç”Ÿæˆ
+åƒæ˜¯ç‰©å“æ‰è½ä¹‹ç±»çš„ä¹Ÿä¼šæœ‰æ˜¾è‘—å˜åŠ¨
+ç¥ä½ å¥½è¿;P
+é»˜è®¤æŒ‰ä¸‹Fæ‰“å¼€ç¼–è¾‘ç•Œé¢
+ä¸æ”¯æŒå¤šäºº.
+
+å°é¢çš„è§’è‰²æ˜¯æ¥è‡ªè¿ç¼˜Projectçš„ä¸–ä¹ƒäºš
+
+
+Use this mod to modify vanilla's uniformed distribution!
+Most significantly influenced will be world generation.
+The other aspects like item loot will change a lot as well.
+Have fun ;P
+Press F to open the editor in world by default.
+Multiplayer not support.
+
+The character of the icon is "Xeno a", from Len'En Project.
